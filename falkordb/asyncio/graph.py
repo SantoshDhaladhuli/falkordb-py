@@ -37,7 +37,7 @@ class AsyncGraph(Graph):
         """
 
         super().__init__(client, name)
-        self.schema = GraphSchema(self)  # type: ignore[assignment]
+        self.schema: GraphSchema = GraphSchema(self)  # type: ignore[assignment]
 
     async def _query(  # type: ignore[override]
         self,
@@ -81,6 +81,10 @@ class AsyncGraph(Graph):
 
         # issue query
         try:
+            if not read_only:
+                self.schema._dirty_labels = True
+                self.schema._dirty_properties = True
+                self.schema._dirty_relations = True
             response = await self.execute_command(*command)
             query_result = QueryResult(self)
             await query_result.parse(response)
@@ -88,7 +92,7 @@ class AsyncGraph(Graph):
         except SchemaVersionMismatchException as e:
             # client view over the graph schema is out of sync
             # set client version and refresh local schema
-            self.schema.refresh(e.version)
+            await self.schema.refresh(e.version)
             raise e
 
     async def query(  # type: ignore[override]
